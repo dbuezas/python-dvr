@@ -503,8 +503,9 @@ class DVRIPCam(object):
             target=self.alarm_thread,
             args=[self.busy],
         )
+        res = self.get_command("", self.QCODES["AlarmSet"])
         self.alarm.start()
-        return self.get_command("", self.QCODES["AlarmSet"])
+        return res
 
     def alarm_thread(self, event):
         while True:
