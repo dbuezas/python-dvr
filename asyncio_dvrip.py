@@ -83,7 +83,6 @@ class DVRIPCam(object):
         self.logger = logging.getLogger(__name__)
         self.ip = ip
         self.user = kwargs.get("user", "admin")
-        hash_pass = kwargs.get("hash_pass")
         self.hash_pass = kwargs.get("hash_pass", self.sofia_hash(kwargs.get("password", "")))
         self.proto = kwargs.get("proto", "tcp")
         self.port = kwargs.get("port", self.PORTS.get(self.proto))
@@ -92,7 +91,6 @@ class DVRIPCam(object):
         self.packet_count = 0
         self.session = 0
         self.alive_time = 20
-        self.alive = None
         self.alarm_func = None
         self.timeout = 10
         self.busy = asyncio.Lock()
@@ -123,7 +121,6 @@ class DVRIPCam(object):
 
     def close(self):
         try:
-            self.alive.cancel()
             self.socket_writer.close()
         except:
             pass
@@ -415,7 +412,7 @@ class DVRIPCam(object):
         return await self.get_command("", self.QCODES["AlarmSet"])
 
     async def alarm_worker(self):
-        while True:
+        while self.socket_writer:
             await self.busy.acquire()
             try:
                 (
@@ -437,16 +434,14 @@ class DVRIPCam(object):
                 pass
             finally:
                 self.busy.release()
-            if self.socket_writer is None:
-                break
-
+            
     async def set_remote_alarm(self, state):
         await self.set_command(
             "OPNetAlarm", {"Event": 0, "State": state},
         )
 
     async def keep_alive_workner(self):
-        while True:
+        while self.socket_writer:
 
             ret = await self.send(
                 self.QCODES["KeepAlive"],
